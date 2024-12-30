@@ -8,6 +8,8 @@ from karton.core import Task
 import tempfile
 import requests
 import re
+from bson.objectid import ObjectId
+
 class nucleim(BHunters):
     """
     Nuclei scanner developed by Bormaa
@@ -128,7 +130,7 @@ class nucleim(BHunters):
             
             result=self.nucleiscansingle(url)
         else:
-            data=self.backend.download_object("bhunters",f"{self.source}_"+self.encode_filename(url))
+            data=self.backend.download_object("bhunters",f"{self.source}_"+self.scanid+"_"+self.encode_filename(url))
             result=self.nucleiscanfile(data)
 
         return result
@@ -137,6 +139,9 @@ class nucleim(BHunters):
     def process(self, task: Task) -> None:
         source = task.payload["source"]
         self.source=source
+        self.scanid=task.payload_persistent["scan_id"]
+        report_id=task.payload_persistent["report_id"]
+
         subdomain = task.payload["subdomain"]
         subdomain = re.sub(r'^https?://', '', subdomain)
         subdomain = subdomain.rstrip('/')
@@ -147,9 +152,10 @@ class nucleim(BHunters):
         url = re.sub(r'^https?://', '', url)
         url = url.rstrip('/')
         try:
-            db = self.db
 
             result=self.scan(url)
+            self.waitformongo()
+            db = self.db
             resarr=[]
             for i in result:
                 if i != "":
@@ -157,8 +163,8 @@ class nucleim(BHunters):
             
             if resarr !=[] and len(resarr)>0:
                 resultdata = "\n".join(map(lambda x: str(x), resarr)).encode()
-                collection = db["domains"]
-                collection.update_one({"Domain": subdomain}, {"$push": {f"Vulns.Nuclei": {"$each": resarr}}})
+                collection = db["reports"]
+                collection.update_one({"_id":ObjectId(report_id)}, {"$push": {f"Vulns.Nuclei": {"$each": resarr}}}, upsert=True)
 
                 self.send_discord_webhook(f"New Nuclei Vulnerability Found for {url} ",resultdata.decode('utf-8'),channel="main")
             self.update_task_status(subdomain,"Finished")
