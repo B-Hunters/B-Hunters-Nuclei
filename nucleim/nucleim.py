@@ -19,22 +19,18 @@ class nucleim(BHunters):
     version = __version__
     persistent = True
     scan_type=os.getenv("scan_type","Full")
-    if scan_type=="Full":
-        
-        filters = [
-            {
-                "type": "subdomain", "stage": "new"
-            },
-            {
-                "type": "paths", "stage": "scan"
-            }
-        ]
-    else:
-        filters = [
-            {
-                "type": "subdomain", "stage": "new"
-            }
-        ]
+    # The filters do not depend on the environment: a worker whose queue
+    # binding changes with an environment variable has a contract that
+    # cannot be reasoned about.  The worker always binds to both filters
+    # and decides what to do at run time.
+    filters = [
+        {
+            "type": "subdomain", "stage": "new"
+        },
+        {
+            "type": "paths", "stage": "scan"
+        }
+    ]
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
     def nucleiscansingle(self,url):
