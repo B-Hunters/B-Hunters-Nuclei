@@ -33,10 +33,20 @@ class nucleim(BHunters):
     ]
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-    def nucleiscansingle(self,url):
+    def header_args(self,headers):
+        """The arguments that give nuclei the session headers.
+
+        Nuclei takes them as ``-H "name: value"`` and sends them with
+        every request it makes.
+        """
+        args=[]
+        for name,value in headers.items():
+            args += ["-H", f"{name}: {value}"]
+        return args
+    def nucleiscansingle(self,url,headers):
         try:
             filename=self.generate_random_filename()
-            p1=subprocess.Popen(["nuclei","-es","info","-t","/app/templates","-etags","ssl","-target", url,"-o",filename], stdout=subprocess.PIPE)
+            p1=subprocess.Popen(["nuclei","-es","info","-t","/app/templates","-etags","ssl","-target", url,"-o",filename]+self.header_args(headers), stdout=subprocess.PIPE)
             data=""
             result=""
             try:
@@ -64,7 +74,7 @@ class nucleim(BHunters):
             self.log.error(e)
             raise Exception(e)
         return result
-    def nucleiscanfile(self,data):
+    def nucleiscanfile(self,data,headers):
         
         outputfile=self.generate_random_filename()+".txt"
         filename=self.generate_random_filename()+".txt"
@@ -90,7 +100,7 @@ class nucleim(BHunters):
         # Command 7: dalfox pipe --deep-domxss --multicast --blind 
         if newlinks==[]:
             return []
-        p6=subprocess.Popen(["nuclei","-t","/app/templates","-dast","-rl","20","-o",outputfile], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p6=subprocess.Popen(["nuclei","-t","/app/templates","-dast","-rl","20","-o",outputfile]+self.header_args(headers), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         p6.stdin.write('\n'.join(newlinks).encode())
         p5.stdout.close()
 
@@ -121,13 +131,13 @@ class nucleim(BHunters):
         
         return result
                 
-    def scan(self,url):
+    def scan(self,url,headers):
         if self.source == "subrecon":
             
-            result=self.nucleiscansingle(url)
+            result=self.nucleiscansingle(url,headers)
         else:
             data=self.backend.download_object("bhunters",f"{self.source}_"+self.scanid+"_"+self.encode_filename(url))
-            result=self.nucleiscanfile(data)
+            result=self.nucleiscanfile(data,headers)
 
         return result
         
@@ -149,7 +159,8 @@ class nucleim(BHunters):
         url = url.rstrip('/')
         try:
 
-            result=self.scan(url)
+            headers=self.auth_headers(task)
+            result=self.scan(url,headers)
             self.waitformongo()
             db = self.db
             resarr=[]
