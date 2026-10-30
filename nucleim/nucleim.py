@@ -46,11 +46,14 @@ class nucleim(BHunters):
     def nucleiscansingle(self,url,headers):
         try:
             filename=self.generate_random_filename()
-            p1=subprocess.Popen(["nuclei","-es","info","-t","/app/templates","-etags","ssl","-target", url,"-o",filename]+self.header_args(headers), stdout=subprocess.PIPE)
+            # The scan gives every worker a share of its time: the run is
+            # bounded in the number of requests it makes, in the rate it
+            # makes them and in the time it may take.
+            p1=subprocess.Popen(["nuclei","-es","info","-t","/app/templates","-etags","ssl","-c","25","-timeout","10","-target", url,"-o",filename]+self.header_args(headers), stdout=subprocess.PIPE)
             data=""
             result=""
             try:
-                output, _ = p1.communicate(timeout=3600)  # 60 minutes timeout
+                output, _ = p1.communicate(timeout=300)  # 5 minutes timeout
             except subprocess.TimeoutExpired:
                 p1.kill()
                 try:
@@ -100,14 +103,14 @@ class nucleim(BHunters):
         # Command 7: dalfox pipe --deep-domxss --multicast --blind 
         if newlinks==[]:
             return []
-        p6=subprocess.Popen(["nuclei","-t","/app/templates","-dast","-rl","20","-o",outputfile]+self.header_args(headers), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p6=subprocess.Popen(["nuclei","-t","/app/templates","-dast","-rl","150","-timeout","10","-o",outputfile]+self.header_args(headers), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         p6.stdin.write('\n'.join(newlinks).encode())
         p5.stdout.close()
 
         data=""
         result=""
         try:
-            output, _ = p6.communicate(timeout=7200)  # 120 minutes timeout
+            output, _ = p6.communicate(timeout=300)  # 5 minutes timeout
         except subprocess.TimeoutExpired:
             p6.kill()
             try:
