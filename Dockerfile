@@ -1,5 +1,5 @@
 # Build Stage
-FROM ubuntu:latest AS build
+FROM ubuntu@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da069b5d76db AS build
 
 # Update and install necessary build tools
 RUN apt update && apt install -y \
@@ -24,7 +24,6 @@ RUN go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest && go ins
 FROM python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 RUN apt update && apt install -y git && apt clean && rm -rf /var/lib/apt/lists/*
 # Copy Go binaries and tools from the build stage
-COPY --from=build /usr/local/go /usr/local/go
 COPY --from=build /root/go/bin /root/go/bin
 
 WORKDIR /app/service/
@@ -34,7 +33,7 @@ WORKDIR /app/service/
 # the local wheel; the default is the published release.
 ARG B_HUNTERS_WHEEL=b-hunters==1.4.1
 RUN pip install --no-cache-dir ${B_HUNTERS_WHEEL} uro
-RUN git clone https://github.com/projectdiscovery/nuclei-templates /app/templates
+RUN git clone --depth 1 https://github.com/projectdiscovery/nuclei-templates /app/templates
 # Set environment variables for Go
 ENV PATH="$PATH:/usr/local/go/bin:/root/go/bin:/usr/local/go/bin:$HOME/.local/bin"
 ENV GOROOT="/usr/local/go"
